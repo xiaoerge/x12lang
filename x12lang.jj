@@ -1,0 +1,167 @@
+options {
+	STATIC = false;
+}
+
+PARSER_BEGIN(X12Lang)
+
+import java.util.*;
+import java.io.*;
+
+public class X12Lang {
+	public static Map<String, Object> env = new HashMap<String, Object>();
+	public static void main(String[] args) throws ParseException, TokenMgrError, FileNotFoundException {
+
+		X12Lang parser = null;
+		if (args.length > 1) {
+			parser = new X12Lang(new FileReader(args[0]));
+		}
+		else {
+			parser = new X12Lang(System.in);
+		}
+		
+		env.put("sysin", System.in);
+		env.put("sysout", System.out);
+		env.put("syserr", System.err);
+
+		env.put("variable", new HashMap<String, Object>());
+
+		System.out.println("X12Lang Shell");
+		parser.parse(env);
+	}
+}
+
+PARSER_END(X12Lang)
+
+SKIP: { " " }
+TOKEN: { <EOL: "\n" | "\r" | "\r\n"> }
+TOKEN:{
+	<ISA: "isa">
+	| <GS:  "gs">
+	| <ST: "st">
+	| <SE: "se">
+	| <GE: "ge">
+	| <IEA: "iea">
+	| <REF: "ref">
+	| <EQ: "eq">
+	| <PRV: "prv">
+	| <NM1: "nm1">
+}
+
+TOKEN: {
+	<TYPE_INTEGER: "int">
+	| <TYPE_DOUBLE: "double">
+	| <TYPE_STRING: "string">
+	| <TYPE_BOOLEAN: "bool">
+}
+
+TOKEN: { <#DIGIT : (["0"-"9"]) >}
+TOKEN: { <#LETTER : (["a"-"z", "A"-"Z"]) >}
+
+TOKEN : { 
+	<PLUS: "+"> | <MINUS: "-"> | <DIVIDE: "/"> | <MULTIPLY: "*">
+}
+
+TOKEN: {
+	<TERMINATOR: "~">
+}
+
+TOKEN: { 
+	< INTEGER: (<DIGIT>)+ > 
+	| < DOUBLE: (<DIGIT>)* "." (<DIGIT>)+ >
+	| < BOOLEAN: "true" | "false" >
+	| < QUOTED_STRING: "\"" (~["\""])+ "\"" >
+}
+TOKEN: {
+	<VARIABLE: (<LETTER>)+ (<LETTER> | <DIGIT>)* >
+}
+
+void parse(Map<String, Object> env): {} {
+	(
+		imports(env)
+		statements(env)
+	)
+	(<EOL>)*
+	<EOF>
+}
+
+void imports(Map<String, Object> env): { Token t; } { /* ref stdio~ */
+	(<REF> t = <VARIABLE> <TERMINATOR> <EOL>)*
+}
+
+//todo implement flexible statements
+void statements(Map<String, Object> env): {} {
+	declarations(env) 
+	assignments(env)
+	commands(env)
+}
+
+void declarations(Map<String, Object> env): { Token token;} { /* nm1 i : int~ */
+	(
+		<NM1> token = <VARIABLE> ":" 
+		(<TYPE_INTEGER> | <TYPE_DOUBLE> | <TYPE_BOOLEAN> | <TYPE_STRING>) 
+		<TERMINATOR>
+		{
+			Map<String, Object> map = (HashMap<String, Object>) env.get("variable");
+			map.put(token.image, null);
+
+			//todo check if defined
+		}
+		<EOL>
+	)*
+}
+
+Object parseValue(String key, Token token): {} {
+	{
+		switch(key) {
+			case "int":
+				return Integer.parseInt(token.image);
+			case "double":
+				return Double.parseDouble(token.image);
+			case "bool":
+				return Boolean.parseBoolean(token.image);
+			case "string":
+				return token.image;
+			default:
+				return token.image;
+		}
+	}
+}
+
+void assignments(Map<String, Object> env): { Token token, value; String key;} { /* i eq 1~ */
+	(
+		LOOKAHEAD(2)
+		token = <VARIABLE> <EQ> 
+		(
+			value = <INTEGER> {key = "int";}
+			| value = <DOUBLE> {key = "double";}
+			| value = <BOOLEAN> {key = "bool";}
+			| value = <QUOTED_STRING> {key = "string";}
+		) 
+		<TERMINATOR>
+		{
+			Map<String, Object> map = (HashMap<String, Object>) env.get("variable");
+			map.put(token.image, parseValue(key, value));
+		}
+		<EOL>
+	)*
+}
+
+void commands(Map<String, Object> env): { Token token; Object var; } { /* print "hello world"~ print myVar~ */
+	(
+		<PRV> 
+		(
+			(token = <INTEGER> | token = <DOUBLE> | token = <QUOTED_STRING> | token = <BOOLEAN>)
+			{ var = token.image; }
+			| (token = <VARIABLE>)
+			{
+				var = ((HashMap<String, Object>)env.get("variable")).get(token.image);
+			}
+		)
+		<TERMINATOR>
+		<EOL>
+		{
+			PrintStream out = (PrintStream) env.get("sysout"); 
+			out.println(var);
+		}
+	)*
+}

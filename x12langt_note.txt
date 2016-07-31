@@ -1,0 +1,24 @@
+AMT
+BHT
+DMG
+DTP
+EQ
+GE
+GS
+HI
+HL
+IEA
+III
+INS
+ISA
+N3
+N4
+NM1
+PRV
+REF
+SE
+ST
+TRN
+
+
+isa iea are function declerations
