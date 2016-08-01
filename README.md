@@ -13,7 +13,7 @@ X12Lang source is divided into 3 sections.
 * The second or middle section is variable declarations
 * The third or final section is function commands
 
-### Library Import (Does not currently do anything, nor does the libraries exist)
+### Library Import (Does not currently do anything, nor do the libraries exist)
 ```
 	ref stdio~ 
 	ref stdlib~
