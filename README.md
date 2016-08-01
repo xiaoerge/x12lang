@@ -24,6 +24,10 @@ X12Lang source is divided into 3 sections.
 	nm1 msg : string~
 	nm1 myInt : int~
 	nm1 money : double~
+
+	msg eq "hello world"~
+	myInt eq 100~
+	money eq 1.0~
 ```
 
 ### Function Commands (Currently only supports PRINT)
